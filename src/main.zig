@@ -13,7 +13,7 @@ fn label(text: [:0]const u8, x: f32, y: f32, r: u8, g: u8, b: u8) void {
     defer rg.GuiSetStyle(rg.GuiControl.DEFAULT.toValue(), rg.GuiControlProperty.TEXT_COLOR_NORMAL.toValue(), oldcolor);
 
     rg.GuiSetStyle(rg.GuiControl.DEFAULT.toValue(), rg.GuiControlProperty.TEXT_COLOR_NORMAL.toValue(), (rl.Color{ .r = r, .g = g, .b = b, .a = 255 }).toValue());
-    _ = rg.GuiLabel(rl.Rectangle.init(x, y, 100, CHECKBOX_SIZE), @ptrCast(text));
+    _ = rg.GuiLabel(rl.Rectangle.init(x, y, 300, CHECKBOX_SIZE), @ptrCast(text));
 }
 
 fn checkbox(text: [:0]const u8, value: *bool, x: f32, y: f32, size: f32) void {
@@ -25,8 +25,18 @@ fn checkbox(text: [:0]const u8, value: *bool, x: f32, y: f32, size: f32) void {
     _ = rg.GuiCheckBox(rl.Rectangle.init(x, y, size, size), @ptrCast(text), value);
 }
 
+const Die = struct {
+    pos: rl.Vector2,
+    // vel: rl.Vector2,
+    rot: f32,
+    rotvel: f32,
+    value: f32,
+    chosen: bool,
+};
+
 const State = struct {
     buf: [256]u8 = undefined,
+    mouse_pos: rl.Vector2 = undefined,
     show_all_attributes: bool = true,
 
     expertise_panel_bounds: rg.Rectangle = rg.Rectangle{ .x = 20, .y = 120, .width = 500, .height = 800 },
@@ -40,21 +50,32 @@ const State = struct {
     player_active: c_int = 0,
     player_focus: c_int = 0,
     player_files: rl.FilePathList = undefined,
+
+    roll_state: enum { inactive, configuring, rolling, displaying } = .inactive,
+    roll_expertise_active: c_int = 0,
+    roll_expertise_focus: c_int = 0,
+    roll_difficulty_active: c_int = 0,
+    roll_difficulty_focus: c_int = 0,
+    roll_advantages: f32 = 0,
+    roll_disadvantages: f32 = 0,
+    roll_advantage_bonus: f32 = 0,
+
+    dice: std.BoundedArray(Die, 32) = std.BoundedArray(Die, 32).init(0) catch unreachable,
 };
 
 pub fn main() !void {
+    character.init();
     var player = character.makeCharacter("Srekel", "Anders");
     var state = State{};
 
     rl.InitWindow(800, 1000, "Tides of Tabletop");
-    rg.GuiLoadStyle("external/raygui/styles/dark/style_dark.rgs");
+    rg.GuiLoadStyle("style_dark.rgs");
     rg.GuiEnableTooltip();
     defer rl.CloseWindow();
     rl.SetTargetFPS(60);
 
     while (!rl.WindowShouldClose()) {
-        const mouse_pos: rl.Vector2 = .{ .x = @floatFromInt(rl.GetMouseX()), .y = @floatFromInt(rl.GetMouseY()) };
-        _ = mouse_pos; // autofix
+        state.mouse_pos = .{ .x = @floatFromInt(rl.GetMouseX()), .y = @floatFromInt(rl.GetMouseY()) };
         rl.BeginDrawing();
         defer rl.EndDrawing();
         const style = rg.GuiGetStyle(
@@ -129,17 +150,7 @@ pub fn main() !void {
         }
 
         drawCharacterSheet(&player, &state);
-
-        // if (rg.GuiButton(rl.Rectangle.init(24, 24, 120, 30), "#191#Show Message") > 0)
-        //     showMessageBox = true;
-
-        // if (showMessageBox) {
-        //     const bounds = rl.Rectangle.init(85, 70, 250, 100);
-        //     const result = rg.GuiMessageBox(bounds, "#191#Message Box", "Hi! This is a message!", "Nice;Cool");
-        //     if (result >= 0) showMessageBox = false;
-        // }
-
-        // rl.EndDrawing();
+        drawDice(&player, &state);
     }
 
     return;
@@ -150,11 +161,15 @@ fn drawCharacterSheet(player: *character.Character, state: *State) void {
     _ = rg.GuiLabel(rl.Rectangle.init(100, 40, 100, CHECKBOX_SIZE), @ptrCast(player.name));
 
     _ = rg.GuiLabel(rl.Rectangle.init(20, 60, 100, CHECKBOX_SIZE), "Player:");
-    _ = rg.GuiLabel(rl.Rectangle.init(100, 70, 100, CHECKBOX_SIZE), @ptrCast(player.player));
+    _ = rg.GuiLabel(rl.Rectangle.init(100, 60, 100, CHECKBOX_SIZE), @ptrCast(player.player));
 
     const str = std.fmt.bufPrintZ(&state.buf, "{d}", .{player.xp}) catch unreachable;
     _ = rg.GuiLabel(rl.Rectangle.init(20, 80, 100, CHECKBOX_SIZE), "XP:");
     _ = rg.GuiLabel(rl.Rectangle.init(100, 80, 100, CHECKBOX_SIZE), @ptrCast(str));
+
+    if (rg.GuiButton(rl.Rectangle.init(150, 80, 20, 20), rg.GuiIconText(.ICON_ARROW_UP_FILL, "")) != 0) {
+        player.xp += if (rl.IsKeyDown(@intFromEnum(rl.KeyboardKey.KEY_LEFT_CONTROL))) 10 else 1;
+    }
 
     label("Expertises:", 20, 100, 255, 0, 255);
     _ = rg.GuiCheckBox(rl.Rectangle.init(350, 100, 20, CHECKBOX_SIZE), "Show all attributes", &state.show_all_attributes);
@@ -253,4 +268,179 @@ fn drawCharacterSheet(player: *character.Character, state: *State) void {
     state.expertise_panel_content.height = @max(state.expertise_panel_content.height, y - state.expertise_panel_bounds.y - state.expertise_panel_scroll.y);
 
     rl.EndScissorMode();
+}
+
+fn drawDice(player: *character.Character, state: *State) void {
+    rg.GuiDisableTooltip();
+
+    var rnd = std.Random.Pcg.init(@intFromFloat(rl.GetTime()));
+    if (state.roll_state == .inactive) {
+        if (rg.GuiButton(rl.Rectangle.init(700, 100, 100, 50), "Roll...") != 0) {
+            state.roll_difficulty_active = 3;
+            state.roll_advantage_bonus = 0;
+            state.roll_state = .configuring;
+            return;
+        }
+    }
+
+    const at_advantage = state.roll_advantages > state.roll_disadvantages;
+    if (state.roll_state == .configuring) {
+        if (rg.GuiButton(rl.Rectangle.init(700, 100, 100, 50), "Roll!") != 0) {
+            state.dice.resize(0) catch unreachable;
+            var extra_dice: u32 = @intFromFloat(@abs(state.roll_advantages - state.roll_disadvantages));
+            if (extra_dice > 3) {
+                state.roll_advantage_bonus = @floatFromInt((extra_dice - 3) * 3);
+                if (!at_advantage) {
+                    state.roll_advantage_bonus *= -1;
+                }
+                extra_dice = @min(extra_dice, 3);
+            }
+            for (0..3 + extra_dice) |i_d| {
+                var die = state.dice.addOneAssumeCapacity();
+                die.chosen = false;
+                die.pos.x = 600 + @as(f32, @floatFromInt(i_d % 3)) * 80;
+                die.pos.y = 350 + @as(f32, @floatFromInt(i_d / 3)) * 80;
+                die.rot = rnd.random().float(f32) * 400;
+                die.rotvel = 200 + rnd.random().float(f32) * 1800;
+            }
+
+            state.roll_state = .rolling;
+            return;
+        }
+
+        _ = rg.GuiListViewEx(rl.Rectangle.init(600, 150, 200, 350), @ptrCast(character.ui_expertises), @intCast(character.all_expertises.len), &state.player_scrollindex, &state.roll_expertise_active, &state.roll_expertise_focus);
+        _ = rg.GuiListViewEx(rl.Rectangle.init(600, 500, 200, 200), @ptrCast(character.ui_difficulties), @intCast(character.all_difficulties.len), &state.player_scrollindex, &state.roll_difficulty_active, &state.roll_difficulty_focus);
+        state.roll_expertise_active = @max(0, state.roll_expertise_active);
+        state.roll_difficulty_active = @max(0, state.roll_difficulty_active);
+
+        var str = std.fmt.bufPrintZ(&state.buf, "{d}", .{state.roll_advantages}) catch unreachable;
+        _ = rg.GuiSlider(rl.Rectangle.init(600, 700, 170, 30), "Advantages", str, &state.roll_advantages, 0, 10);
+        str = std.fmt.bufPrintZ(&state.buf, "{d}", .{state.roll_disadvantages}) catch unreachable;
+        _ = rg.GuiSlider(rl.Rectangle.init(600, 730, 170, 30), "Disadvantages.", str, &state.roll_disadvantages, 0, 10);
+        state.roll_advantages = @round(state.roll_advantages);
+        state.roll_disadvantages = @round(state.roll_disadvantages);
+    }
+
+    if (state.roll_state == .rolling) {
+        const dt = @min(0.1, rl.GetFrameTime());
+        for (state.dice.slice()) |*die| {
+            die.rotvel *= 0.98;
+            die.value = @ceil(die.rot / 36);
+            if (@abs(die.rotvel) < 100) {
+                die.rotvel = 0;
+                die.rot = 36 * die.value;
+            }
+
+            die.rot += die.rotvel * dt;
+            if (die.rot > 360) {
+                die.rot -= 360;
+            }
+        }
+
+        const default_value: f32 = if (at_advantage) 0 else 100;
+        var results = [_]f32{default_value} ** 20;
+        for (state.dice.slice(), 0..) |*die, i| {
+            if (@abs(die.rotvel) != 0) {
+                break;
+            }
+            results[i] = die.value;
+        } else {
+            if (at_advantage) {
+                std.mem.sort(f32, &results, {}, std.sort.desc(f32));
+            } else {
+                std.mem.sort(f32, &results, {}, std.sort.asc(f32));
+            }
+
+            for (results[0..3]) |choice| {
+                for (state.dice.slice()) |*die| {
+                    if (!die.chosen and die.value == choice) {
+                        die.chosen = true;
+                        break;
+                    }
+                }
+            }
+
+            state.roll_state = .displaying;
+        }
+    }
+
+    if (state.roll_state == .rolling or state.roll_state == .displaying) {
+        if (rg.GuiButton(rl.Rectangle.init(700, 100, 100, 50), "Done") != 0) {
+            state.roll_state = .inactive;
+        }
+
+        label("Expertise:", 600, 150, 255, 255, 0);
+        _ = rg.GuiLabel(rl.Rectangle.init(700, 150, 100, CHECKBOX_SIZE), @ptrCast(character.all_expertises[@intCast(state.roll_expertise_active)]));
+
+        label("Difficulty:", 600, 180, 255, 255, 0);
+        _ = rg.GuiLabel(rl.Rectangle.init(700, 180, 100, CHECKBOX_SIZE), @ptrCast(character.ui_difficulties[@intCast(state.roll_difficulty_active)]));
+
+        const target_number = character.target_numbers[@intCast(state.roll_difficulty_active)];
+        var str = std.fmt.bufPrintZ(&state.buf, "{d}", .{target_number}) catch unreachable;
+        label("Target number:", 600, 210, 255, 255, 0);
+        _ = rg.GuiLabel(rl.Rectangle.init(700, 210, 100, CHECKBOX_SIZE), str);
+
+        if (at_advantage) {
+            label("Rolling with advantage!", 600, 240, 255, 0, 255);
+        } else if (state.roll_advantages < state.roll_disadvantages) {
+            label("Rolling with disadvantage!", 600, 240, 255, 0, 0);
+        }
+        const color_rolling = rl.Color.init(0, 0, 255, 255);
+        const color_still = rl.Color.init(255, 0, 255, 255);
+        const color_chosen = rl.Color.init(255, 255, 255, 255);
+        for (state.dice.slice()) |*die| {
+            const color = if (die.chosen) color_chosen else if (die.rotvel == 0) color_still else color_rolling;
+            const radius: f32 = if (die.chosen) 40 else 30;
+            rl.DrawPolyLines(die.pos, 10, radius, die.rot, color);
+
+            str = std.fmt.bufPrintZ(&state.buf, "{d}", .{die.value}) catch unreachable;
+
+            label(str, die.pos.x, die.pos.y - 10, 255, 0, 255);
+        }
+
+        var dice_sum: f32 = 0;
+        for (state.dice.slice()) |*die| {
+            if (die.chosen) {
+                dice_sum += die.value;
+            }
+        }
+
+        const color_success = rl.Color.init(150, 150, 255, 255);
+        const color_fail = rl.Color.init(255, 0, 0, 255);
+        const color_value = rl.Color.init(255, 255, 200, 255);
+
+        label("Dice:", 600, 500, 255, 255, 0);
+        str = std.fmt.bufPrintZ(&state.buf, "{d}", .{dice_sum}) catch unreachable;
+        rl.DrawText(str, 750, 500, 20, color_value);
+        // _ = rg.GuiLabel(rl.Rectangle.init(750, 600, 100, CHECKBOX_SIZE), str);
+
+        label("Converted advantage:", 600, 530, 255, 255, 0);
+        str = std.fmt.bufPrintZ(&state.buf, "{d}", .{state.roll_advantage_bonus}) catch unreachable;
+        rl.DrawText(str, 750, 530, 20, color_value);
+        // _ = rg.GuiLabel(rl.Rectangle.init(750, 630, 100, CHECKBOX_SIZE), str);
+
+        label("Expertise points:", 600, 560, 255, 255, 0);
+        const expertise = player.getExpertise(character.all_expertises[@intCast(state.roll_expertise_active)]);
+        str = std.fmt.bufPrintZ(&state.buf, "{d}", .{expertise.points}) catch unreachable;
+        rl.DrawText(str, 750, 560, 20, color_value);
+        // _ = rg.GuiLabel(rl.Rectangle.init(750, 560, 100, CHECKBOX_SIZE), str);
+
+        if (state.roll_state == .displaying) {
+            const sum: f32 = dice_sum + state.roll_advantage_bonus + @as(f32, @floatFromInt(expertise.points));
+
+            str = std.fmt.bufPrintZ(&state.buf, "{d} VS {d}", .{ sum, target_number }) catch unreachable;
+            rl.DrawText(str, 630, 600, 30, if (sum >= target_number) color_success else color_fail);
+
+            var y: c_int = 600;
+            var bonus: f32 = 1;
+            var next_bonus: f32 = 1;
+            while (sum >= target_number + next_bonus) {
+                y += 30;
+                str = std.fmt.bufPrintZ(&state.buf, "Bonus: {d}", .{target_number + next_bonus}) catch unreachable;
+                rl.DrawText(str, 630, y, 30, if (sum >= target_number) color_success else color_fail);
+                bonus += 1;
+                next_bonus += bonus;
+            }
+        }
+    }
 }

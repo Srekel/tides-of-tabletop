@@ -11,8 +11,8 @@
             "program": "${workspaceFolder}/zig-out/bin/HexCrawlDeluxe.exe",
             "args": [],
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}",
-            // "cwd": "${workspaceFolder}/zig-out/bin",
+            // "cwd": "${workspaceFolder}",
+            "cwd": "${workspaceFolder}/zig-out/bin",
             "environment": [],
             "preLaunchTask": "build"
         },

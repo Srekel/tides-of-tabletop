@@ -55,7 +55,64 @@ pub const Character = struct {
     player: [:0]const u8,
     xp: u32 = 500,
     expertises: std.BoundedArray(Expertise, 16),
+
+    pub fn getExpertise(self: *Character, exp_name: []const u8) *Expertise {
+        for (self.expertises.slice()) |*exp| {
+            if (std.mem.eql(u8, exp.name, exp_name)) {
+                return exp;
+            }
+        }
+        unreachable;
+    }
 };
+
+pub var all_expertises = [_][:0]const u8{
+    "Communication",
+    "Crafting",
+    "Education",
+    "Exploration",
+    "Healing",
+    "Investigation",
+    "Melee Combat",
+    "Movement",
+    "Physique",
+    "Ranged Combat",
+    "Thievery",
+};
+
+pub var all_difficulties = [_][:0]const u8{
+    "Routine",
+    "Easy",
+    "Tricky",
+    "Hard",
+    "Extreme",
+    "Miraculous",
+};
+
+pub var target_numbers = [_]f32{
+    5,
+    10,
+    15,
+    20,
+    25,
+    30,
+};
+
+pub var ui_expertises: [*c][*c]const u8 = undefined;
+pub var ui_difficulties: [*c][*c]const u8 = undefined;
+
+pub fn init() void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var allocator = gpa.allocator();
+    ui_expertises = @ptrCast(allocator.alloc([*]const u8, all_expertises.len) catch unreachable);
+    for (all_expertises, 0..) |exp, i| {
+        ui_expertises[i] = exp;
+    }
+    ui_difficulties = @ptrCast(allocator.alloc([*]const u8, all_difficulties.len) catch unreachable);
+    for (all_difficulties, 0..) |diff, i| {
+        ui_difficulties[i] = diff;
+    }
+}
 
 pub fn makeCharacter(name: [:0]const u8, player: [:0]const u8) Character {
     const exp_movement: Expertise = .{
