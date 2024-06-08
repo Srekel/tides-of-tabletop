@@ -11,11 +11,14 @@ pub const Expertise = struct {
     name: [:0]const u8 = "",
     level: ExpertiseLevel = .Inexperienced,
     points: u8 = 0,
+    has_talent: bool = false,
     attributes: std.BoundedArray(Attribute, 16),
 
     pub fn costForPoint(self: Expertise) u32 {
-        return 5 + @as(u32, @intFromEnum(self.level)) * 1;
+        const cost = 5 + @as(u32, @intFromEnum(self.level)) * 1;
+        return cost - @as(u8, if (self.has_talent) 2 else 0);
     }
+
     pub fn canUpgrade(self: Expertise) bool {
         if (self.points != 4) {
             return false;
@@ -37,7 +40,8 @@ pub const Expertise = struct {
         return true;
     }
     pub fn costForUpgrade(self: Expertise) u32 {
-        return (@as(u32, @intFromEnum(self.level)) + 1) * 3;
+        const cost: u32 = (@as(u32, @intFromEnum(self.level)) + 1) * 3;
+        return cost - @as(u8, if (self.has_talent) 2 else 0);
     }
     pub fn costForAttribute(self: Expertise) u32 {
         var cost: u32 = 5;
@@ -46,13 +50,32 @@ pub const Expertise = struct {
                 cost += 5;
             }
         }
-        return cost;
+        return cost - @as(u8, if (self.has_talent) 2 else 0);
+    }
+
+    pub fn pickedAttributeCount(self: Expertise) u32 {
+        var count: u32 = 0;
+        for (self.attributes.slice()) |attribute| {
+            if (attribute.picked) {
+                count += 1;
+            }
+        }
+        return count;
+    }
+
+    pub fn getAttribute(self: *Expertise, attribute_name: []const u8) *Attribute {
+        for (self.attributes.slice()) |*attribute| {
+            if (std.mem.eql(u8, attribute.name, attribute_name)) {
+                return attribute;
+            }
+        }
+        unreachable;
     }
 };
 
 pub const Character = struct {
-    name: [:0]const u8,
-    player: [:0]const u8,
+    name: std.BoundedArray(u8, 64),
+    player: std.BoundedArray(u8, 64),
     xp: u32 = 500,
     expertises: std.BoundedArray(Expertise, 16),
 
@@ -75,6 +98,7 @@ pub var all_expertises = [_][:0]const u8{
     "Investigation",
     "Melee Combat",
     "Movement",
+    "Perception",
     "Physique",
     "Ranged Combat",
     "Thievery",
@@ -140,6 +164,22 @@ pub fn makeCharacter(name: [:0]const u8, player: [:0]const u8) Character {
             .{ .name = "Slender" },
             .{ .name = "Strong" },
             .{ .name = "Tough" },
+        }) catch unreachable,
+    };
+    const exp_perception: Expertise = .{
+        .name = "Perception",
+        .attributes = std.BoundedArray(Attribute, 16).fromSlice(&[_]Attribute{
+            .{ .name = "Alert" },
+            .{ .name = "Auditory" },
+            .{ .name = "Discerning" },
+            .{ .name = "Kinesthetic" },
+            .{ .name = "Nasal" },
+            .{ .name = "Precise" },
+            .{ .name = "Sagacious" },
+            .{ .name = "Sensitive" },
+            .{ .name = "Sharp-sighted" },
+            .{ .name = "Skeptical" },
+            .{ .name = "Tactile" },
         }) catch unreachable,
     };
     const exp_communication: Expertise = .{
@@ -272,6 +312,7 @@ pub fn makeCharacter(name: [:0]const u8, player: [:0]const u8) Character {
     const expertises = [_]Expertise{
         exp_movement,
         exp_physique,
+        exp_perception,
         exp_communication,
         exp_melee_combat,
         exp_ranged_combat,
@@ -283,8 +324,8 @@ pub fn makeCharacter(name: [:0]const u8, player: [:0]const u8) Character {
         exp_crafting,
     };
     const character = Character{
-        .name = name,
-        .player = player,
+        .name = std.BoundedArray(u8, 64).fromSlice(name) catch unreachable,
+        .player = std.BoundedArray(u8, 64).fromSlice(player) catch unreachable,
         .expertises = std.BoundedArray(Expertise, 16).fromSlice(&expertises) catch unreachable,
     };
 
