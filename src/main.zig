@@ -16,8 +16,8 @@ const experience_colors = [_]rl.Color{
     .{ .r = 50, .g = 230, .b = 255, .a = 255 },
 };
 
-const cc_beginner_skills = 1;
-const cc_novice_skills = 1;
+const cc_beginner_skills = 4;
+const cc_novice_skills = 2;
 const cc_total_skills = cc_beginner_skills + cc_novice_skills;
 const cc_talents = 2;
 const cc_attributes = 2;
@@ -122,6 +122,8 @@ pub fn main() !void {
                     state.creating_character = .naming;
                     @memcpy(state.buf[0..player.name.slice().len], player.name.slice());
                     @memcpy(state.buf2[0..player.player.slice().len], player.player.slice());
+                    state.buf[player.name.slice().len] = 0;
+                    state.buf[player.player.slice().len] = 0;
                     state.show_all_attributes = false;
                 } else {
                     state.creating_character = .inactive;
@@ -142,9 +144,9 @@ pub fn main() !void {
 
         const time: f64 = @floatFromInt((std.time.Instant.now() catch unreachable).timestamp);
         const cc_color = rl.Color.init(
-            @intFromFloat(200 + sin(time * 0.000001) * 50),
-            @intFromFloat(200 + sin(time * 0.000001) * 50),
-            @intFromFloat(50 + sin(time * 0.000001) * 50),
+            @intFromFloat(200 + sin(time * 0.000001) * 20),
+            @intFromFloat(200 + sin(time * 0.000001) * 20),
+            @intFromFloat(50 + sin(time * 0.000001) * 20),
             255,
         );
         switch (state.creating_character) {
@@ -402,6 +404,7 @@ fn drawCharacterSheet(player: *character.Character, state: *State) void {
 
 fn drawDice(player: *character.Character, state: *State) void {
     rg.GuiDisableTooltip();
+    defer rg.GuiEnableTooltip();
 
     var rnd = std.Random.Pcg.init(@intFromFloat(rl.GetTime()));
     if (state.roll_state == .inactive) {
@@ -577,7 +580,7 @@ fn drawDice(player: *character.Character, state: *State) void {
 fn drawCharacterCreation(player: *character.Character, state: *State) void {
     if (state.creating_character == .pick_expertises) {
         var active = state.roll_expertise_active;
-        _ = rg.GuiListViewEx(rl.Rectangle.init(600, 150, 200, 350), @ptrCast(character.ui_expertises), @intCast(character.all_expertises.len), &state.player_scrollindex, &active, &state.roll_expertise_focus);
+        _ = rg.GuiListViewEx(rl.Rectangle.init(600, 150, 200, 380), @ptrCast(character.ui_expertises), @intCast(character.all_expertises.len), &state.player_scrollindex, &active, &state.roll_expertise_focus);
         active = @max(0, active);
 
         const expertise_prev = player.getExpertise(character.all_expertises[@intCast(state.roll_expertise_active)]);
@@ -593,7 +596,7 @@ fn drawCharacterCreation(player: *character.Character, state: *State) void {
         if (already_picked or wanted_attribute_count != attribute_count) {
             rg.GuiDisable();
         }
-        if (rg.GuiButton(rl.Rectangle.init(600, 500, 200, 50), button_text) != 0) {
+        if (rg.GuiButton(rl.Rectangle.init(600, 530, 200, 50), button_text) != 0) {
             if (state.creating_character.pick_expertises < cc_novice_skills) {
                 if (expertise.pickedAttributeCount() == 2) {
                     expertise.level = .Novice;
@@ -645,7 +648,7 @@ fn drawCharacterCreation(player: *character.Character, state: *State) void {
             rg.GuiEnable();
         }
     } else if (state.creating_character == .pick_talents) {
-        _ = rg.GuiListViewEx(rl.Rectangle.init(600, 150, 200, 350), @ptrCast(character.ui_expertises), @intCast(character.all_expertises.len), &state.player_scrollindex, &state.roll_expertise_active, &state.roll_expertise_focus);
+        _ = rg.GuiListViewEx(rl.Rectangle.init(600, 150, 200, 380), @ptrCast(character.ui_expertises), @intCast(character.all_expertises.len), &state.player_scrollindex, &state.roll_expertise_active, &state.roll_expertise_focus);
         state.roll_expertise_active = @max(0, state.roll_expertise_active);
         var expertise = player.getExpertise(character.all_expertises[@intCast(state.roll_expertise_active)]);
         const can_pick_talent = !expertise.has_talent;
@@ -653,7 +656,7 @@ fn drawCharacterCreation(player: *character.Character, state: *State) void {
         if (!can_pick_talent) {
             rg.GuiDisable();
         }
-        if (rg.GuiButton(rl.Rectangle.init(600, 500, 200, 50), button_text) != 0) {
+        if (rg.GuiButton(rl.Rectangle.init(600, 530, 200, 50), button_text) != 0) {
             expertise.has_talent = true;
             state.creating_character.pick_talents += 1;
             if (state.creating_character.pick_talents == cc_talents) {
