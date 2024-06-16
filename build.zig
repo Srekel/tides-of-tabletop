@@ -21,7 +21,7 @@ pub fn build(b: *std.Build) !void {
     });
     exe.root_module.addImport("rlzb", bindings.module("raylib-zig-bindings"));
 
-    var setup = try rlzb.Setup.init(b, .{ .cwd_relative = "external/raylib/src" }, .{});
+    var setup = try rlzb.Setup.init(b, .{ .src_path = .{ .owner = b, .sub_path = "external/raylib/src" } }, .{});
     defer setup.deinit();
 
     try setup.addRayguiToRaylibSrc(b, .{ .cwd_relative = "external/raygui/src/raygui.h" });

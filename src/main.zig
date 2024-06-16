@@ -25,19 +25,19 @@ const cc_attributes = 2;
 const CHECKBOX_SIZE = 16;
 
 fn label(text: [:0]const u8, x: f32, y: f32, r: u8, g: u8, b: u8) void {
-    const oldcolor = rg.GuiGetStyle(rg.GuiControl.DEFAULT.toValue(), rg.GuiControlProperty.TEXT_COLOR_NORMAL.toValue());
-    defer rg.GuiSetStyle(rg.GuiControl.DEFAULT.toValue(), rg.GuiControlProperty.TEXT_COLOR_NORMAL.toValue(), oldcolor);
+    const oldcolor = rg.GuiGetStyle(rg.GuiControl.DEFAULT.toCInt(), rg.GuiControlProperty.TEXT_COLOR_NORMAL.toCInt());
+    defer rg.GuiSetStyle(rg.GuiControl.DEFAULT.toCInt(), rg.GuiControlProperty.TEXT_COLOR_NORMAL.toCInt(), oldcolor);
 
-    rg.GuiSetStyle(rg.GuiControl.DEFAULT.toValue(), rg.GuiControlProperty.TEXT_COLOR_NORMAL.toValue(), (rl.Color{ .r = r, .g = g, .b = b, .a = 255 }).toValue());
+    rg.GuiSetStyle(rg.GuiControl.DEFAULT.toCInt(), rg.GuiControlProperty.TEXT_COLOR_NORMAL.toCInt(), (rl.Color{ .r = r, .g = g, .b = b, .a = 255 }).toCInt());
     _ = rg.GuiLabel(rl.Rectangle.init(x, y, 300, CHECKBOX_SIZE), @ptrCast(text));
 }
 
 fn checkbox(text: [:0]const u8, value: *bool, x: f32, y: f32, size: f32) void {
-    const oldcolor = rg.GuiGetStyle(rg.GuiControl.DEFAULT.toValue(), rg.GuiControlProperty.TEXT_COLOR_NORMAL.toValue());
-    defer rg.GuiSetStyle(rg.GuiControl.DEFAULT.toValue(), rg.GuiControlProperty.TEXT_COLOR_NORMAL.toValue(), oldcolor);
+    const oldcolor = rg.GuiGetStyle(rg.GuiControl.DEFAULT.toCInt(), rg.GuiControlProperty.TEXT_COLOR_NORMAL.toCInt());
+    defer rg.GuiSetStyle(rg.GuiControl.DEFAULT.toCInt(), rg.GuiControlProperty.TEXT_COLOR_NORMAL.toCInt(), oldcolor);
 
     const light: u8 = if (value.*) 255 else 200;
-    rg.GuiSetStyle(rg.GuiControl.DEFAULT.toValue(), rg.GuiControlProperty.TEXT_COLOR_NORMAL.toValue(), (rl.Color{ .r = light, .g = light, .b = light, .a = 255 }).toValue());
+    rg.GuiSetStyle(rg.GuiControl.DEFAULT.toCInt(), rg.GuiControlProperty.TEXT_COLOR_NORMAL.toCInt(), (rl.Color{ .r = light, .g = light, .b = light, .a = 255 }).toCInt());
     _ = rg.GuiCheckBox(rl.Rectangle.init(x, y, size, size), @ptrCast(text), value);
 }
 
@@ -67,10 +67,10 @@ const State = struct {
     } = .inactive,
     cc_comparison: character.Character = undefined,
 
-    expertise_panel_bounds: rg.Rectangle = rg.Rectangle{ .x = 20, .y = 120, .width = 520, .height = 800 },
-    expertise_panel_content: rg.Rectangle = rg.Rectangle{ .x = 0, .y = 0, .width = 500, .height = 1000 },
-    expertise_panel_view: rg.Rectangle = rg.Rectangle{ .x = 0, .y = 0, .width = 520, .height = 1000 },
-    expertise_panel_scroll: rg.Vector2 = rg.Vector2{ .x = 0, .y = 10 },
+    expertise_panel_bounds: rl.Rectangle = rl.Rectangle{ .x = 20, .y = 120, .width = 520, .height = 800 },
+    expertise_panel_content: rl.Rectangle = rl.Rectangle{ .x = 0, .y = 0, .width = 500, .height = 1000 },
+    expertise_panel_view: rl.Rectangle = rl.Rectangle{ .x = 0, .y = 0, .width = 520, .height = 1000 },
+    expertise_panel_scroll: rl.Vector2 = rl.Vector2{ .x = 0, .y = 10 },
 
     player_buf: [256 * 1024]u8 = undefined,
     player_list_visible: bool = false,
@@ -110,8 +110,8 @@ pub fn main() !void {
         rl.BeginDrawing();
         defer rl.EndDrawing();
         const style = rg.GuiGetStyle(
-            rg.GuiControl.DEFAULT.toValue(),
-            rg.GuiDefaultProperty.BACKGROUND_COLOR.toValue(),
+            rg.GuiControl.DEFAULT.toCInt(),
+            rg.GuiDefaultProperty.BACKGROUND_COLOR.toCInt(),
         );
         rl.ClearBackground(rl.GetColor(@bitCast(style)));
 
