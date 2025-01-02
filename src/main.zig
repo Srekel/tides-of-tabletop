@@ -34,19 +34,19 @@ const cc_attributes = 2;
 const CHECKBOX_SIZE = 16;
 
 fn label(text: [:0]const u8, x: f32, y: f32, r: u8, g: u8, b: u8) void {
-    const oldcolor = rg.guiGetStyle(.default, rg.GuiControlProperty.text_color_normal.toCInt());
-    defer rg.guiSetStyle(.default, rg.GuiControlProperty.text_color_normal.toCInt(), oldcolor);
+    const oldcolor = rg.guiGetStyle(.default, @intFromEnum(rg.GuiControlProperty.text_color_normal));
+    defer rg.guiSetStyle(.default, @intFromEnum(rg.GuiControlProperty.text_color_normal), oldcolor);
 
-    rg.guiSetStyle(.default, rg.GuiControlProperty.text_color_normal.toCInt(), (rl.Color{ .r = r, .g = g, .b = b, .a = 255 }).toInt());
+    rg.guiSetStyle(.default, @intFromEnum(rg.GuiControlProperty.text_color_normal), (rl.Color{ .r = r, .g = g, .b = b, .a = 255 }).toInt());
     _ = rg.guiLabel(rl.Rectangle.init(x, y, 300, CHECKBOX_SIZE), @ptrCast(text));
 }
 
 fn checkbox(text: [:0]const u8, value: *bool, x: f32, y: f32, size: f32) void {
-    const oldcolor = rg.guiGetStyle(.default, rg.GuiControlProperty.text_color_normal.toCInt());
-    defer rg.guiSetStyle(.default, rg.GuiControlProperty.text_color_normal.toCInt(), oldcolor);
+    const oldcolor = rg.guiGetStyle(.default, @intFromEnum(rg.GuiControlProperty.text_color_normal));
+    defer rg.guiSetStyle(.default, @intFromEnum(rg.GuiControlProperty.text_color_normal), oldcolor);
 
     const light: u8 = if (value.*) 255 else 200;
-    rg.guiSetStyle(.default, rg.GuiControlProperty.text_color_normal.toCInt(), (rl.Color{ .r = light, .g = light, .b = light, .a = 255 }).toCInt());
+    rg.guiSetStyle(.default, @intFromEnum(rg.GuiControlProperty.text_color_normal), (rl.Color{ .r = light, .g = light, .b = light, .a = 255 }).toInt());
     _ = rg.guiCheckBox(rl.Rectangle.init(x, y, size, size), @ptrCast(text), value);
 }
 
@@ -118,7 +118,7 @@ pub fn main() !void {
         state.expertise_panel_bounds.height = @floatFromInt(rl.getScreenHeight() - 150);
         rl.beginDrawing();
         defer rl.endDrawing();
-        const style = rg.guiGetStyle(.default, rg.GuiDefaultProperty.background_color.toCInt());
+        const style = rg.guiGetStyle(.default, @intFromEnum(rg.GuiDefaultProperty.background_color));
         rl.clearBackground(rl.getColor(@bitCast(style)));
 
         if (state.creating_character == .inactive) {
@@ -239,7 +239,14 @@ pub fn main() !void {
         }
 
         if (state.player_list_visible) {
-            _ = rg.guiListViewEx(rl.Rectangle.init(100, 40, 400, 200), state.player_files.paths, &state.player_scrollindex, &state.player_active, &state.player_focus);
+            _ = rg.guiListViewEx(
+                rl.Rectangle.init(100, 40, 400, 200),
+                @ptrCast(state.player_files.paths[0..state.player_files.count]),
+                // @as([][*:0]const u8, @ptrCast(state.player_files.paths)),
+                &state.player_scrollindex,
+                &state.player_active,
+                &state.player_focus,
+            );
 
             if (rg.guiButton(rl.Rectangle.init(20, 240, 70, 30), rg.guiIconText(@intFromEnum(rg.GuiIconName.icon_file_save), "Save")) != 0) {
                 var jsonbuf: [100000]u8 = undefined;
@@ -307,7 +314,7 @@ fn drawCharacterSheet(player: *character.Character, state: *State) void {
         _ = rg.guiLabel(rl.Rectangle.init(100, 80, 100, CHECKBOX_SIZE), @ptrCast(str));
 
         if (rg.guiButton(rl.Rectangle.init(150, 80, 20, 20), rg.guiIconText(@intFromEnum(rg.GuiIconName.icon_arrow_up_fill), "")) != 0) {
-            player.xp += if (rl.isKeyDown(@intFromEnum(rl.keyboardKey.KEY_LEFT_CONTROL))) 10 else 1;
+            player.xp += if (rl.isKeyDown(rl.KeyboardKey.key_left_control)) 10 else 1;
         }
     }
 
@@ -351,7 +358,7 @@ fn drawCharacterSheet(player: *character.Character, state: *State) void {
 
         if (expertise.has_talent) {
             rg.guiSetTooltip("You are Talented in this expertise.");
-            rg.guiDrawIcon(.ICON_HEART, @intFromFloat(x + 180), @intFromFloat(y + 2), 1, rl.Color.init(0, 150, 0, 255));
+            rg.guiDrawIcon(@intFromEnum(rg.GuiIconName.icon_heart), @intFromFloat(x + 180), @intFromFloat(y + 2), 1, rl.Color.init(0, 150, 0, 255));
         }
 
         y += 30;
@@ -446,8 +453,23 @@ fn drawDice(player: *character.Character, state: *State) void {
             return;
         }
 
-        _ = rg.guiListViewEx(rl.Rectangle.init(600, 150, 200, 380), @ptrCast(character.ui_expertises), @intCast(character.all_expertises.len), &state.player_scrollindex, &state.roll_expertise_active, &state.roll_expertise_focus);
-        _ = rg.guiListViewEx(rl.Rectangle.init(600, 530, 200, 200), @ptrCast(character.ui_difficulties), @intCast(character.all_difficulties.len), &state.player_scrollindex, &state.roll_difficulty_active, &state.roll_difficulty_focus);
+        _ = rg.guiListViewEx(
+            rl.Rectangle.init(600, 150, 200, 380),
+            // @ptrCast(state.player_files.paths[0..state.player_files.count]),
+            @ptrCast(character.ui_expertises[0..character.all_expertises.len]),
+            // @intCast(character.all_expertises.len),
+            &state.player_scrollindex,
+            &state.roll_expertise_active,
+            &state.roll_expertise_focus,
+        );
+        _ = rg.guiListViewEx(
+            rl.Rectangle.init(600, 530, 200, 200),
+            @ptrCast(character.ui_difficulties[0..character.all_difficulties.len]),
+            // @intCast(character.all_difficulties.len),
+            &state.player_scrollindex,
+            &state.roll_difficulty_active,
+            &state.roll_difficulty_focus,
+        );
         state.roll_expertise_active = @max(0, state.roll_expertise_active);
         state.roll_difficulty_active = @max(0, state.roll_difficulty_active);
 
@@ -586,7 +608,13 @@ fn drawDice(player: *character.Character, state: *State) void {
 fn drawCharacterCreation(player: *character.Character, state: *State) void {
     if (state.creating_character == .pick_expertises) {
         var active = state.roll_expertise_active;
-        _ = rg.guiListViewEx(rl.Rectangle.init(600, 150, 200, 380), @ptrCast(character.ui_expertises), @intCast(character.all_expertises.len), &state.player_scrollindex, &active, &state.roll_expertise_focus);
+        _ = rg.guiListViewEx(
+            rl.Rectangle.init(600, 150, 200, 380),
+            @ptrCast(character.ui_expertises[0..character.all_expertises.len]),
+            &state.player_scrollindex,
+            &active,
+            &state.roll_expertise_focus,
+        );
         active = @max(0, active);
 
         const expertise_prev = player.getExpertise(character.all_expertises[@intCast(state.roll_expertise_active)]);
@@ -654,7 +682,13 @@ fn drawCharacterCreation(player: *character.Character, state: *State) void {
             rg.guiEnable();
         }
     } else if (state.creating_character == .pick_talents) {
-        _ = rg.guiListViewEx(rl.Rectangle.init(600, 150, 200, 380), @ptrCast(character.ui_expertises), @intCast(character.all_expertises.len), &state.player_scrollindex, &state.roll_expertise_active, &state.roll_expertise_focus);
+        _ = rg.guiListViewEx(
+            rl.Rectangle.init(600, 150, 200, 380),
+            @ptrCast(character.ui_expertises[0..character.all_expertises.len]),
+            &state.player_scrollindex,
+            &state.roll_expertise_active,
+            &state.roll_expertise_focus,
+        );
         state.roll_expertise_active = @max(0, state.roll_expertise_active);
         var expertise = player.getExpertise(character.all_expertises[@intCast(state.roll_expertise_active)]);
         const can_pick_talent = !expertise.has_talent;
