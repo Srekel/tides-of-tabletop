@@ -106,7 +106,7 @@ pub fn main() !void {
     var state = State{};
 
     rl.setConfigFlags(.{ .window_resizable = true });
-    rl.initWindow(800, 1100, "Tides of Tabletop");
+    rl.initWindow(800, 900, "Tides of Tabletop");
     rg.guiLoadStyle("style_dark.rgs");
     rg.guiEnableTooltip();
     defer rl.closeWindow();

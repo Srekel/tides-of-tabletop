@@ -8,7 +8,7 @@
             "name": "(Windows) Launch",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/zig-out/bin/HexCrawlDeluxe.exe",
+            "program": "${workspaceFolder}/zig-out/bin/Tides of Revival TTRPG.exe",
             "args": [],
             "stopAtEntry": false,
             // "cwd": "${workspaceFolder}",
