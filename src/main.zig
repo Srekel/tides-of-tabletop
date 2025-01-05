@@ -29,7 +29,7 @@ const cc_beginner_skills = 6;
 const cc_novice_skills = 2;
 const cc_total_skills = cc_beginner_skills + cc_novice_skills;
 const cc_talents = 2;
-const cc_attributes = 2;
+const cc_attributes = 10;
 
 const CHECKBOX_SIZE = 16;
 
@@ -70,8 +70,8 @@ const State = struct {
     creating_character: union(enum) {
         inactive,
         naming,
-        pick_expertises: u8,
-        pick_attributes: u8,
+        pick_expertises: i8,
+        pick_attributes: i8,
         pick_talents: u8,
     } = .inactive,
     cc_comparison: character.Character = undefined,
@@ -162,16 +162,18 @@ pub fn main() !void {
             },
             .pick_expertises => {
                 if (state.creating_character.pick_expertises < cc_beginner_skills) {
-                    const str = std.fmt.bufPrintZ(&state.buf, "2/5 Choose {any} Beginner expertises + attributes)", .{cc_beginner_skills - state.creating_character.pick_expertises}) catch unreachable;
+                    const str = std.fmt.bufPrintZ(&state.buf, "2/5 Choose {any} Beginner expertises", .{cc_beginner_skills - state.creating_character.pick_expertises}) catch unreachable;
                     rl.drawText(str, 30, 10, 30, cc_color);
                     rl.drawLine(600, 50, 650, 140, cc_color);
                 } else if (state.creating_character.pick_expertises < cc_total_skills) {
-                    rl.drawText("3/5 Upgrade expertises to Novice + attributes)", 30, 10, 30, cc_color);
+                    const str = std.fmt.bufPrintZ(&state.buf, "3/5 Upgrade {any} expertises to Novice", .{cc_total_skills - state.creating_character.pick_expertises}) catch unreachable;
+                    rl.drawText(str, 30, 10, 30, cc_color);
                     rl.drawLine(600, 50, 650, 140, cc_color);
                 }
             },
             .pick_attributes => {
-                rl.drawText("4/5 Add two attributes!", 100, 10, 30, cc_color);
+                const str = std.fmt.bufPrintZ(&state.buf, "4/5 Pick {any} attributes", .{cc_attributes - state.creating_character.pick_attributes}) catch unreachable;
+                rl.drawText(str, 100, 10, 30, cc_color);
                 rl.drawLine(350, 50, 300, 140, cc_color);
             },
             .pick_talents => {
@@ -387,12 +389,14 @@ fn drawCharacterSheet(player: *character.Character, state: *State) void {
             }
             y += @as(f32, @floatFromInt(20));
             var picked = attribute.picked;
-            if (state.creating_character == .pick_attributes and state.cc_comparison.getExpertise(expertise.name).getAttribute(attribute.name).picked) {
+            const disable_pick_expertises = state.creating_character == .pick_expertises;
+            const disable_pick_attributes = state.creating_character == .pick_attributes and state.cc_comparison.getExpertise(expertise.name).getAttribute(attribute.name).picked;
+            if (disable_pick_expertises or disable_pick_attributes) {
                 rg.guiDisable();
             }
             checkbox(attribute.name, &picked, x + 10, y, CHECKBOX_SIZE);
 
-            if (state.creating_character == .pick_attributes and state.cc_comparison.getExpertise(expertise.name).getAttribute(attribute.name).picked) {
+            if (disable_pick_expertises or disable_pick_attributes) {
                 rg.guiEnable();
             }
             if (picked != attribute.picked) {
@@ -401,10 +405,11 @@ fn drawCharacterSheet(player: *character.Character, state: *State) void {
                         player.xp -= expertise.costForAttribute();
                         attribute.picked = true;
                     }
-                } else if (state.creating_character == .pick_expertises) {
-                    attribute.picked = !attribute.picked;
+                    // } else if (state.creating_character == .pick_expertises) {
+                    // attribute.picked = !attribute.picked;
                 } else if (state.creating_character == .pick_attributes) {
                     attribute.picked = !attribute.picked;
+                    state.creating_character.pick_attributes += if (attribute.picked) 1 else -1;
                 }
             }
         }
@@ -624,7 +629,7 @@ fn drawCharacterCreation(player: *character.Character, state: *State) void {
         }
         state.roll_expertise_active = active;
         var expertise = player.getExpertise(character.all_expertises[@intCast(state.roll_expertise_active)]);
-        const wanted_attribute_count: u32 = if (state.creating_character.pick_expertises < cc_beginner_skills) 1 else 2;
+        const wanted_attribute_count: u32 = if (state.creating_character.pick_expertises < cc_beginner_skills) 0 else 0;
         const attribute_count = expertise.pickedAttributeCount();
         const needed_level: character.ExpertiseLevel = if (state.creating_character.pick_expertises < cc_beginner_skills) .Inexperienced else .Beginner;
         const already_picked = expertise.level != needed_level;
@@ -634,13 +639,13 @@ fn drawCharacterCreation(player: *character.Character, state: *State) void {
         }
         if (rg.guiButton(rl.Rectangle.init(600, 530, 200, 50), button_text) != 0) {
             if (state.creating_character.pick_expertises < cc_beginner_skills) {
-                if (expertise.pickedAttributeCount() == 1) {
-                    expertise.level = .Beginner;
-                }
+                // if (expertise.pickedAttributeCount() == 1) {
+                expertise.level = .Beginner;
+                // }
             } else if (state.creating_character.pick_expertises < cc_total_skills) {
-                if (expertise.pickedAttributeCount() == 2) {
-                    expertise.level = .Novice;
-                }
+                // if (expertise.pickedAttributeCount() == 2) {
+                expertise.level = .Novice;
+                // }
             } else {
                 expertise.has_talent = true;
             }
