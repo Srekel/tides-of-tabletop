@@ -25,7 +25,7 @@ const experience_colors = [_]rl.Color{
     .{ .r = 50, .g = 230, .b = 255, .a = 255 },
 };
 
-const cc_beginner_skills = 4;
+const cc_beginner_skills = 6;
 const cc_novice_skills = 2;
 const cc_total_skills = cc_beginner_skills + cc_novice_skills;
 const cc_talents = 2;
@@ -161,11 +161,12 @@ pub fn main() !void {
                 rl.drawText("1/5 Name your character!", 150, 10, 30, cc_color);
             },
             .pick_expertises => {
-                if (state.creating_character.pick_expertises < cc_novice_skills) {
-                    rl.drawText("2/5 Choose Novice expertises + attributes)", 30, 10, 30, cc_color);
+                if (state.creating_character.pick_expertises < cc_beginner_skills) {
+                    const str = std.fmt.bufPrintZ(&state.buf, "2/5 Choose {any} Beginner expertises + attributes)", .{cc_beginner_skills - state.creating_character.pick_expertises}) catch unreachable;
+                    rl.drawText(str, 30, 10, 30, cc_color);
                     rl.drawLine(600, 50, 650, 140, cc_color);
                 } else if (state.creating_character.pick_expertises < cc_total_skills) {
-                    rl.drawText("3/5 Choose Beginner expertises + attributes)", 30, 10, 30, cc_color);
+                    rl.drawText("3/5 Upgrade expertises to Novice + attributes)", 30, 10, 30, cc_color);
                     rl.drawLine(600, 50, 650, 140, cc_color);
                 }
             },
@@ -221,7 +222,7 @@ pub fn main() !void {
             }
 
             if (state.buf[0] != 0 and state.buf2[0] != 0 and rg.guiButton(rl.Rectangle.init(220, 300, 430, 50), rg.guiIconText(@intFromEnum(rg.GuiIconName.icon_star), "Confirm!")) != 0) {
-                state.creating_character = .{ .pick_expertises = 0 };
+                state.creating_character = .{ .pick_expertises = 4 }; // initial expertises
                 const name_len: u7 = @intCast(std.mem.len(@as([*c]u8, @ptrCast(&state.buf))));
                 const player_len: u7 = @intCast(std.mem.len(@as([*c]u8, @ptrCast(&state.buf2))));
                 player = character.makeCharacter("", "");
@@ -623,21 +624,22 @@ fn drawCharacterCreation(player: *character.Character, state: *State) void {
         }
         state.roll_expertise_active = active;
         var expertise = player.getExpertise(character.all_expertises[@intCast(state.roll_expertise_active)]);
-        const wanted_attribute_count: u32 = if (state.creating_character.pick_expertises < cc_novice_skills) 2 else 1;
+        const wanted_attribute_count: u32 = if (state.creating_character.pick_expertises < cc_beginner_skills) 1 else 2;
         const attribute_count = expertise.pickedAttributeCount();
-        const already_picked = expertise.level != .Inexperienced;
+        const needed_level: character.ExpertiseLevel = if (state.creating_character.pick_expertises < cc_beginner_skills) .Inexperienced else .Beginner;
+        const already_picked = expertise.level != needed_level;
         const button_text = if (already_picked) "Already chosen!" else if (wanted_attribute_count != attribute_count) "Choose attributes" else "Confirm!";
         if (already_picked or wanted_attribute_count != attribute_count) {
             rg.guiDisable();
         }
         if (rg.guiButton(rl.Rectangle.init(600, 530, 200, 50), button_text) != 0) {
-            if (state.creating_character.pick_expertises < cc_novice_skills) {
-                if (expertise.pickedAttributeCount() == 2) {
-                    expertise.level = .Novice;
-                }
-            } else if (state.creating_character.pick_expertises < cc_total_skills) {
+            if (state.creating_character.pick_expertises < cc_beginner_skills) {
                 if (expertise.pickedAttributeCount() == 1) {
                     expertise.level = .Beginner;
+                }
+            } else if (state.creating_character.pick_expertises < cc_total_skills) {
+                if (expertise.pickedAttributeCount() == 2) {
+                    expertise.level = .Novice;
                 }
             } else {
                 expertise.has_talent = true;

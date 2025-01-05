@@ -141,6 +141,7 @@ pub fn init() void {
 pub fn makeCharacter(name: [:0]const u8, player: [:0]const u8) Character {
     const exp_movement: Expertise = .{
         .name = "Movement",
+        .level = .Beginner,
         .attributes = std.BoundedArray(Attribute, 16).fromSlice(&[_]Attribute{
             .{ .name = "Acrobatic" },
             .{ .name = "Agile" },
@@ -155,6 +156,7 @@ pub fn makeCharacter(name: [:0]const u8, player: [:0]const u8) Character {
     };
     const exp_physique: Expertise = .{
         .name = "Physique",
+        .level = .Beginner,
         .attributes = std.BoundedArray(Attribute, 16).fromSlice(&[_]Attribute{
             .{ .name = "Athletic" },
             .{ .name = "Healthy" },
@@ -168,6 +170,7 @@ pub fn makeCharacter(name: [:0]const u8, player: [:0]const u8) Character {
     };
     const exp_perception: Expertise = .{
         .name = "Perception",
+        .level = .Beginner,
         .attributes = std.BoundedArray(Attribute, 16).fromSlice(&[_]Attribute{
             .{ .name = "Alert" },
             .{ .name = "Auditory" },
@@ -184,6 +187,7 @@ pub fn makeCharacter(name: [:0]const u8, player: [:0]const u8) Character {
     };
     const exp_communication: Expertise = .{
         .name = "Communication",
+        .level = .Beginner,
         .attributes = std.BoundedArray(Attribute, 16).fromSlice(&[_]Attribute{
             .{ .name = "Charming" },
             .{ .name = "Deceitful" },
